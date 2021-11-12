@@ -4,8 +4,7 @@ from singer_sdk.target_base import Target
 from singer_sdk import typing as th
 
 from target_athena.sinks import (
-    AthenaSink,
-)
+    AthenaSink, )
 
 
 class TargetAthena(Target):
@@ -33,7 +32,7 @@ class TargetAthena(Target):
         th.Property("temp_dir", th.StringType),
         th.Property("stream_maps", th.ObjectType()),
         th.Property("stream_map_config", th.ObjectType()),
-    ).to_dict()
+        th.Property("partition_keys", th.ArrayType(th.StringType))).to_dict()
     default_sink_class = AthenaSink
 
 

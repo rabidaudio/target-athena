@@ -30,13 +30,13 @@ def flatten_key(k, parent_key, sep):
     full_key = parent_key + [k]
     inflected_key = [n for n in full_key]
     reducer_index = 0
-    while len(sep.join(inflected_key)) >= 255 and reducer_index < len(inflected_key):
-        reduced_key = re.sub(
-            r"[a-z]", "", inflection.camelize(inflected_key[reducer_index])
-        )
+    while len(sep.join(inflected_key)) >= 255 and reducer_index < len(
+            inflected_key):
+        reduced_key = re.sub(r"[a-z]", "",
+                             inflection.camelize(inflected_key[reducer_index]))
         inflected_key[reducer_index] = (
-            reduced_key if len(reduced_key) > 1 else inflected_key[reducer_index][0:3]
-        ).lower()
+            reduced_key if len(reduced_key) > 1 else
+            inflected_key[reducer_index][0:3]).lower()
         reducer_index += 1
 
     return sep.join(inflected_key)
@@ -55,12 +55,17 @@ def flatten_record(d, parent_key=[], sep="__"):
     return dict(items)
 
 
-def get_target_key(stream_name, object_format, prefix="", timestamp=None, naming_convention=None):
+def get_target_key(stream_name,
+                   object_format,
+                   prefix="",
+                   timestamp=None,
+                   naming_convention=None,
+                   partition_path=""):
     """Creates and returns an S3 key for the message"""
 
     if not timestamp:
         timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
 
-    key = f"{prefix}{stream_name}/{timestamp}.{object_format}"
+    key = f"{prefix}{stream_name}/{partition_path}{timestamp}.{object_format}"
 
-    return key 
+    return key
