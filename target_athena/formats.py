@@ -40,10 +40,12 @@ def write_csv(filename, record, header=None, delimiter=",", quotechar='"'):
 def write_jsonl(filename, record, partition_keys=None):
     # If partition keys delete and re-add them in order so they are at the end of record
     if partition_keys is not None:
-        temp_dict = {k: record[k] for k in partition_keys}
-        for k in partition_keys:
-            del record[k]
-        for k in partition_keys:
-            record[k] = temp_dict[k]
+        temp_dict = {k: record[k] for k in partition_keys.keys() if k in record}
+        for k in partition_keys.keys():
+            if k in record:
+                del record[k]
+        for k in partition_keys.keys():
+            if k in temp_dict:
+                record[k] = temp_dict[k]
     with open(filename, 'a', encoding='utf-8') as json_file:
         json_file.write(json.dumps(record, default=str) + '\n')

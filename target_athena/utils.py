@@ -1,6 +1,5 @@
 from datetime import datetime
-import time
-import singer
+import logging
 import json
 import re
 import collections
@@ -9,7 +8,7 @@ import inflection
 from decimal import Decimal
 from datetime import datetime
 
-logger = singer.get_logger("target_athena")
+logger = logging.getLogger("target_athena")
 
 
 def float_to_decimal(value):

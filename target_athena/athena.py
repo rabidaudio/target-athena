@@ -1,5 +1,4 @@
 import os
-import singer
 from logging import Logger
 from pyathena import connect
 
@@ -106,7 +105,7 @@ def get_athena_type(attributes):
     return "STRING"
 
 
-# This function is borrowed direclty from https://github.com/datadudes/json2hive/blob/master/json2hive/generators.py
+# This function is borrowed directly from https://github.com/datadudes/json2hive/blob/master/json2hive/generators.py
 def generate_column_definitions(schema, level=0):
     """Generates stringified column definitions for interpolation in the Hive table creation
     by recursively traversing a nested schema dictionary and inferring type according to 
@@ -117,7 +116,7 @@ def generate_column_definitions(schema, level=0):
         level (int, optional): [description]. Defaults to 0.
 
     Returns:
-        string: a stringified listi of column/type pairs.
+        string: a stringified list of column/type pairs.
     """
     keywords = ["timestamp", "date", "datetime"]
     tab = "  "
@@ -129,6 +128,8 @@ def generate_column_definitions(schema, level=0):
     for name, attributes in schema.items():
         cleaned_name = "`{}`".format(
             name)  # if name.lower() in keywords else name
+        if "type" not in attributes:
+            raise KeyError(f"type not in {name}: {attributes}")
         if attributes["type"] == "object":
             field_definitions.append(
                 "{indentation}{name}{separator}STRUCT<\n{definitions}\n{indentation}>"
@@ -167,7 +168,6 @@ def generate_column_definitions(schema, level=0):
                     name=cleaned_name,
                     separator=type_separator,
                     type=get_athena_type(attributes).upper()
-                    # type="STRING",
                 ))
     return field_separator.join(field_definitions)
 
@@ -176,7 +176,7 @@ def generate_create_database_ddl(database: str = "default") -> None:
     return f"CREATE DATABASE IF NOT EXISTS {database};"
 
 
-# This function is borrowed direclty from https://github.com/datadudes/json2hive/blob/master/json2hive/generators.py
+# This function is borrowed directly from https://github.com/datadudes/json2hive/blob/master/json2hive/generators.py
 def generate_create_table_ddl(
     table,
     schema,
@@ -203,18 +203,17 @@ def generate_create_table_ddl(
         skip_header (bool, optional): [description]. Defaults to True.
     """
 
+    partitions = partition_keys.keys()
+    partition_map = "\n".join([f"  `{k}` STRING" for k in partitions])
     if not headers:
-        # Can't have fields that are also in parition_keys
-        fields = schema["properties"] if partition_keys is None else {
-            k: schema["properties"][k]
-            for k in schema["properties"].keys() if k not in partition_keys
-        }
+        # Can't have fields that are also in partition_keys
+        fields = { k: v for k, v in schema["properties"].items() if k not in partitions }
         field_definitions = generate_column_definitions(fields)
-        partition_map = {k: schema["properties"][k] for k in partition_keys}
+        
     else:
         field_definitions = ",\n".join(
             ["  `{}` STRING".format(_) for _ in headers])
-        partition_map = "\n".join([f"  `{k}` STRING" for k in partition_keys])
+
     external_marker = "EXTERNAL " if external else ""
     row_format = "\nROW FORMAT SERDE '{serde}'".format(
         serde=row_format) if row_format else ""
@@ -223,8 +222,7 @@ def generate_create_table_ddl(
         serdeproperties) if serdeproperties else ""
     location = "\nLOCATION '{}'".format(data_location) if external else ""
     tblproperties = '\nTBLPROPERTIES ("skip.header.line.count" = "1")' if skip_header else ""
-    partitions = f"\nPARTITIONED BY ({generate_column_definitions(partition_map)})".replace(
-        '`', '') if partition_keys else ""
+    partitions = f"\nPARTITIONED BY ({partition_map})" if partition_keys else ""
     return f"CREATE {external_marker}TABLE IF NOT EXISTS {database}.{table} " \
         f"({field_definitions}){partitions}{row_format}{serdeproperties}{stored}{location}{tblproperties};"
 

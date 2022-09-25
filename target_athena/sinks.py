@@ -1,21 +1,30 @@
 """Sample Parquet target stream class, which handles writing streams."""
 
 from datetime import datetime
-import csv
-import json
 import gzip
 import os
 import shutil
 from typing import List
 import tempfile
 import hashlib
+import pendulum
 
 from singer_sdk.sinks import BatchSink
+from singer_sdk.helpers._simpleeval import simple_eval
 
 from target_athena import athena
 from target_athena import s3
 from target_athena import utils
 from target_athena import formats
+
+def eval_partition_key_value(row, expr) -> str:
+    return simple_eval(expr,
+    functions={
+        'date': lambda d: pendulum.instance(d).to_date_string(),
+        'md5': lambda s: hashlib.md5(s.encode("utf-8")).hexdigest(),
+    },
+    names={'row': row, 'pendulum': pendulum},
+)
 
 
 class AthenaSink(BatchSink):
@@ -78,12 +87,14 @@ class AthenaSink(BatchSink):
         if temp_dir:
             os.makedirs(temp_dir, exist_ok=True)
 
-        partition_keys = self.config.get("partition_keys", [])
+        partition_keys = self.config.get("partition_keys", {})
         self.logger.info(
-            f"Partition Keys from config: '{partition_keys}' ({type(partition_keys)})"
+            f"Partition Keys from config: '{partition_keys}'"
         )
-        if type(partition_keys) != list:
-            partition_keys = []
+        if type(partition_keys) == list:
+            partition_keys = {k: k for k in partition_keys}
+        elif type(partition_keys) != dict:
+            partition_keys = {}
         partition_dirs = ['']
 
         filenames = []
@@ -91,11 +102,8 @@ class AthenaSink(BatchSink):
 
         # Serialize records to local files
         for record in records_to_drain:
-            if not all(k in record for k in partition_keys):
-                # if partition keys specified and all are not in record, skip record
-                continue
-            partition_path = ''.join(f"{p}={record[p]}/"
-                                     for p in partition_keys)
+            partition_path = ''.join(f"{k}={eval_partition_key_value(record, v)}/"
+                                     for k, v in partition_keys.items())
             s3_prefix = "{prefix}{database}/".format(
                 prefix=self.config.get("s3_key_prefix", ""),
                 database=self.config.get("athena_database", ""))
@@ -221,7 +229,7 @@ class AthenaSink(BatchSink):
             f"MSCK REPAIR TABLE {self.config.get('athena_database')}.{self.stream_name};",
             self.athena_client)
 
-        # Remove directories created for paritions
+        # Remove directories created for partitions
         for partition_dir in partition_dirs:
             if partition_dir != '':
                 os.rmdir(os.path.join(temp_dir, partition_dir))
