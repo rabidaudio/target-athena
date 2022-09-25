@@ -6,7 +6,7 @@ with open('README.md') as f:
     long_description = f.read()
 
 setup(name="target-athena",
-      version="0.0.1",
+      version="1.4.1",
       description="Singer.io target for writing CSV files and uploading to S3 and Athena.",
       long_description=long_description,
       long_description_content_type='text/markdown',

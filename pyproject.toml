@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "target-athena"
-version = "0.0.1"
+version = "1.4.1"
 description = "`target-athena` is Singer tap for Athena, built with the Singer SDK."
 authors = ["FirstName LastName"]
 license = "Apache 2.0"
